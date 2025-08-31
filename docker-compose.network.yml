@@ -1,0 +1,67 @@
+version: "3.8"
+
+# Network testing configuration
+# Use this for testing across multiple machines
+
+services:
+  # RPS Game Server - Network accessible
+  rps-server:
+    build: .
+    ports:
+      - "0.0.0.0:8080:8080" # Accessible from any network interface
+      - "0.0.0.0:8081:8081" # Additional port for metrics
+    environment:
+      - RUST_LOG=info
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - METRICS_PORT=8081
+    networks:
+      - rps-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "4.0"
+        reservations:
+          memory: 1G
+          cpus: "2.0"
+    restart: unless-stopped
+
+  # Network Load Tester
+  network-tester:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadtest
+    environment:
+      - RUST_LOG=info
+      - SERVER_IP=${SERVER_IP:-host.docker.internal}
+      - SERVER_PORT=8080
+    networks:
+      - rps-network
+    profiles:
+      - network-testing
+    volumes:
+      - ./test-results:/app/results
+    command: /app/scripts/network_test.sh
+
+  # Distributed Load Tester (for multiple instances)
+  distributed-tester:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadtest
+    environment:
+      - RUST_LOG=info
+      - SERVER_IP=${SERVER_IP}
+      - SERVER_PORT=8080
+      - CONNECTIONS=${CONNECTIONS:-500}
+      - TESTER_ID=${TESTER_ID:-1}
+    networks:
+      - rps-network
+    profiles:
+      - distributed
+    volumes:
+      - ./test-results:/app/results
+
+networks:
+  rps-network:
+    driver: bridge

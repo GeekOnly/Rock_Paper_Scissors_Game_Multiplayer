@@ -1,0 +1,33 @@
+# Rust build artifacts
+target/
+Cargo.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Test results
+test-results/
+*.log
+
+# Documentation
+README.md
+docs/
+
+# Scripts (except for loadtest image)
+scripts/

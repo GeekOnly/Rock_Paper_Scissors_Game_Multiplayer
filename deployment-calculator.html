@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPS Game Server - Deployment Cost Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .calculator {
+            padding: 40px;
+        }
+        
+        .input-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .results {
+            background: #f8f9fa;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .results-header {
+            background: #28a745;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .results-content {
+            padding: 30px;
+        }
+        
+        .provider-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .provider-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .provider-card.recommended {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+        
+        .provider-name {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .provider-specs {
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+        
+        .provider-cost {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+        
+        .provider-players {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            display: inline-block;
+        }
+        
+        .recommended-badge {
+            background: #28a745;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            float: right;
+        }
+        
+        .roi-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .roi-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 15px;
+        }
+        
+        .roi-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .roi-stat {
+            text-align: center;
+        }
+        
+        .roi-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #28a745;
+        }
+        
+        .roi-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 RPS Game Server</h1>
+            <p>Deployment Cost Calculator</p>
+        </div>
+        
+        <div class="calculator">
+            <div class="input-section">
+                <h2>📊 Project Requirements</h2>
+                <div class="grid">
+                    <div class="input-group">
+                        <label for="players">Expected Concurrent Players</label>
+                        <input type="number" id="players" value="5000" min="100" max="100000">
+                    </div>
+                    <div class="input-group">
+                        <label for="revenue">Revenue per Player/Month ($)</label>
+                        <input type="number" id="revenue" value="2" min="0" step="0.1">
+                    </div>
+                    <div class="input-group">
+                        <label for="regions">Number of Regions</label>
+                        <select id="regions">
+                            <option value="1">1 Region</option>
+                            <option value="2">2 Regions</option>
+                            <option value="3">3 Regions (Global)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="commitment">Commitment Period</label>
+                        <select id="commitment">
+                            <option value="monthly">Monthly (No Commitment)</option>
+                            <option value="yearly">1 Year (30% Discount)</option>
+                            <option value="3year">3 Years (50% Discount)</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="calculateCosts()">Calculate Costs</button>
+            </div>
+            
+            <div class="results" id="results" style="display: none;">
+                <div class="results-header">
+                    <h2>💰 Cost Analysis Results</h2>
+                </div>
+                <div class="results-content" id="resultsContent">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const providers = {
+            digitalocean: {
+                name: "Digital Ocean",
+                icon: "🌊",
+                tiers: [
+                    { players: 2000, cpu: 2, ram: 4, cost: 24, name: "Basic 4GB" },
+                    { players: 4000, cpu: 4, ram: 8, cost: 48, name: "Basic 8GB" },
+                    { players: 5000, cpu: 4, ram: 8, cost: 63, name: "CPU-Optimized 8GB" },
+                    { players: 10000, cpu: 8, ram: 16, cost: 126, name: "CPU-Optimized 16GB" }
+                ]
+            },
+            linode: {
+                name: "Linode (Akamai)",
+                icon: "🟣",
+                tiers: [
+                    { players: 4000, cpu: 4, ram: 8, cost: 48, name: "Shared 8GB" },
+                    { players: 5000, cpu: 4, ram: 8, cost: 72, name: "Dedicated 8GB" },
+                    { players: 10000, cpu: 8, ram: 16, cost: 144, name: "Dedicated 16GB" }
+                ]
+            },
+            vultr: {
+                name: "Vultr",
+                icon: "🟡",
+                tiers: [
+                    { players: 4000, cpu: 4, ram: 8, cost: 48, name: "High Performance 8GB" },
+                    { players: 6000, cpu: 6, ram: 16, cost: 96, name: "High Performance 16GB" },
+                    { players: 10000, cpu: 8, ram: 32, cost: 192, name: "High Performance 32GB" }
+                ]
+            },
+            gcp: {
+                name: "Google Cloud Platform",
+                icon: "🔵",
+                tiers: [
+                    { players: 2500, cpu: 2, ram: 8, cost: 49, name: "e2-standard-2" },
+                    { players: 5000, cpu: 4, ram: 16, cost: 98, name: "e2-standard-4" },
+                    { players: 5000, cpu: 4, ram: 16, cost: 119, name: "c2-standard-4" },
+                    { players: 10000, cpu: 8, ram: 32, cost: 238, name: "c2-standard-8" }
+                ]
+            },
+            aws: {
+                name: "AWS EC2",
+                icon: "🟠",
+                tiers: [
+                    { players: 2500, cpu: 2, ram: 8, cost: 61, name: "t3.large" },
+                    { players: 5000, cpu: 4, ram: 16, cost: 121, name: "t3.xlarge" },
+                    { players: 5000, cpu: 4, ram: 8, cost: 148, name: "c5.xlarge" },
+                    { players: 10000, cpu: 8, ram: 16, cost: 296, name: "c5.2xlarge" }
+                ]
+            },
+            gamelift: {
+                name: "AWS GameLift",
+                icon: "🎮",
+                tiers: [
+                    { players: 2500, cpu: 2, ram: 4, cost: 140, name: "c5.large" },
+                    { players: 5000, cpu: 4, ram: 8, cost: 280, name: "c5.xlarge" },
+                    { players: 10000, cpu: 8, ram: 16, cost: 561, name: "c5.2xlarge" }
+                ]
+            }
+        };
+
+        function calculateCosts() {
+            const players = parseInt(document.getElementById('players').value);
+            const revenue = parseFloat(document.getElementById('revenue').value);
+            const regions = parseInt(document.getElementById('regions').value);
+            const commitment = document.getElementById('commitment').value;
+            
+            let discountMultiplier = 1;
+            if (commitment === 'yearly') discountMultiplier = 0.7;
+            if (commitment === '3year') discountMultiplier = 0.5;
+            
+            const results = [];
+            
+            Object.entries(providers).forEach(([key, provider]) => {
+                const suitableTier = provider.tiers.find(tier => tier.players >= players) || 
+                                   provider.tiers[provider.tiers.length - 1];
+                
+                const instancesNeeded = Math.ceil(players / suitableTier.players);
+                const baseCost = suitableTier.cost * instancesNeeded * regions * discountMultiplier;
+                
+                // Add additional costs
+                let additionalCosts = 0;
+                if (key === 'aws' || key === 'gcp') {
+                    additionalCosts = 25; // Load balancer, storage, etc.
+                } else if (key === 'gamelift') {
+                    additionalCosts = 50; // Managed service overhead
+                } else {
+                    additionalCosts = 12; // Basic load balancer
+                }
+                
+                const totalCost = baseCost + (additionalCosts * regions);
+                const monthlyRevenue = players * revenue;
+                const profit = monthlyRevenue - totalCost;
+                const profitMargin = monthlyRevenue > 0 ? (profit / monthlyRevenue) * 100 : 0;
+                
+                results.push({
+                    provider: provider.name,
+                    icon: provider.icon,
+                    tier: suitableTier.name,
+                    cpu: suitableTier.cpu * instancesNeeded,
+                    ram: suitableTier.ram * instancesNeeded,
+                    instances: instancesNeeded,
+                    cost: totalCost,
+                    revenue: monthlyRevenue,
+                    profit: profit,
+                    profitMargin: profitMargin,
+                    recommended: key === 'digitalocean' || key === 'vultr'
+                });
+            });
+            
+            // Sort by cost
+            results.sort((a, b) => a.cost - b.cost);
+            
+            displayResults(results, players, revenue);
+        }
+        
+        function displayResults(results, players, revenue) {
+            const resultsDiv = document.getElementById('results');
+            const contentDiv = document.getElementById('resultsContent');
+            
+            let html = '';
+            
+            results.forEach((result, index) => {
+                const isRecommended = index < 3; // Top 3 are recommended
+                html += `
+                    <div class="provider-card ${isRecommended ? 'recommended' : ''}">
+                        ${isRecommended ? '<span class="recommended-badge">Recommended</span>' : ''}
+                        <div class="provider-name">
+                            ${result.icon} ${result.provider}
+                        </div>
+                        <div class="provider-specs">
+                            ${result.tier} × ${result.instances} instance${result.instances > 1 ? 's' : ''}<br>
+                            ${result.cpu} vCPU, ${result.ram} GB RAM
+                        </div>
+                        <div class="provider-cost">
+                            $${result.cost.toFixed(0)}/month
+                        </div>
+                        <div class="provider-players">
+                            Up to ${players.toLocaleString()} players
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Add ROI section
+            const bestOption = results[0];
+            const breakEvenPlayers = Math.ceil(bestOption.cost / revenue);
+            
+            html += `
+                <div class="roi-section">
+                    <div class="roi-title">💡 Return on Investment Analysis</div>
+                    <div class="roi-stats">
+                        <div class="roi-stat">
+                            <div class="roi-value">$${bestOption.revenue.toLocaleString()}</div>
+                            <div class="roi-label">Monthly Revenue</div>
+                        </div>
+                        <div class="roi-stat">
+                            <div class="roi-value">$${bestOption.cost.toFixed(0)}</div>
+                            <div class="roi-label">Server Cost</div>
+                        </div>
+                        <div class="roi-stat">
+                            <div class="roi-value">$${bestOption.profit.toLocaleString()}</div>
+                            <div class="roi-label">Monthly Profit</div>
+                        </div>
+                        <div class="roi-stat">
+                            <div class="roi-value">${bestOption.profitMargin.toFixed(1)}%</div>
+                            <div class="roi-label">Profit Margin</div>
+                        </div>
+                        <div class="roi-stat">
+                            <div class="roi-value">${breakEvenPlayers}</div>
+                            <div class="roi-label">Break-even Players</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            contentDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Calculate on page load
+        window.onload = function() {
+            calculateCosts();
+        };
+    </script>
+</body>
+</html>

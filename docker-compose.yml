@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # RPS Game Server
+  rps-server:
+    build: .
+    ports:
+      - "0.0.0.0:8080:8080"  # Bind to all interfaces
+    environment:
+      - RUST_LOG=info
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+    networks:
+      - rps-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '1.0'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Load Test Client
+  load-tester:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadtest
+    depends_on:
+      - rps-server
+    environment:
+      - RUST_LOG=info
+      - SERVER_URL=ws://rps-server:8080
+    networks:
+      - rps-network
+    profiles:
+      - testing
+    volumes:
+      - ./test-results:/app/results
+
+  # Monitoring with Prometheus (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - rps-network
+    profiles:
+      - monitoring
+
+  # Grafana for visualization (optional)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - rps-network
+    profiles:
+      - monitoring
+
+networks:
+  rps-network:
+    driver: bridge
+
+volumes:
+  grafana-storage:

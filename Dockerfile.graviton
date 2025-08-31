@@ -1,0 +1,93 @@
+# Multi-architecture Dockerfile optimized for AWS Graviton
+FROM --platform=$BUILDPLATFORM rust:1.75-slim as builder
+
+# Install cross-compilation dependencies
+RUN apt-get update && apt-get install -y \
+    gcc-aarch64-linux-gnu \
+    gcc-x86-64-linux-gnu \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Determine target architecture
+ARG TARGETPLATFORM
+RUN case "$TARGETPLATFORM" in \
+    "linux/arm64") echo "aarch64-unknown-linux-gnu" > /target.txt ;; \
+    "linux/amd64") echo "x86_64-unknown-linux-gnu" > /target.txt ;; \
+    *) echo "unsupported platform: $TARGETPLATFORM" && exit 1 ;; \
+    esac
+
+# Install Rust target
+RUN rustup target add $(cat /target.txt)
+
+# Set environment for cross-compilation
+ENV TARGET=$(cat /target.txt)
+RUN case "$TARGET" in \
+    "aarch64-unknown-linux-gnu") \
+        echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> /env.txt && \
+        echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> /env.txt ;; \
+    "x86_64-unknown-linux-gnu") \
+        echo "CC_x86_64_unknown_linux_gnu=x86_64-linux-gnu-gcc" >> /env.txt && \
+        echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc" >> /env.txt ;; \
+    esac
+
+# Source environment variables
+RUN set -a && source /env.txt && set +a
+
+WORKDIR /app
+
+# Copy dependency files first for better caching
+COPY Cargo.toml Cargo.lock ./
+
+# Create dummy main.rs to build dependencies
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+
+# Build dependencies for target architecture
+RUN set -a && source /env.txt && set +a && \
+    cargo build --release --target $(cat /target.txt) && \
+    rm -rf src
+
+# Copy actual source code
+COPY src ./src
+
+# Build the application with architecture-specific optimizations
+RUN set -a && source /env.txt && set +a && \
+    case "$(cat /target.txt)" in \
+        "aarch64-unknown-linux-gnu") \
+            RUSTFLAGS="-C target-cpu=neoverse-n1 -C target-feature=+neon,+fp-armv8,+crc" \
+            cargo build --release --target $(cat /target.txt) ;; \
+        "x86_64-unknown-linux-gnu") \
+            RUSTFLAGS="-C target-cpu=native" \
+            cargo build --release --target $(cat /target.txt) ;; \
+    esac
+
+# Runtime stage - use appropriate base image for target platform
+FROM --platform=$TARGETPLATFORM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user
+RUN useradd -r -s /bin/false appuser
+
+# Copy binary from builder stage
+COPY --from=builder /app/target/*/release/rps-server /usr/local/bin/rps-server
+
+# Set ownership and permissions
+RUN chown appuser:appuser /usr/local/bin/rps-server
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Run the server
+CMD ["rps-server"]

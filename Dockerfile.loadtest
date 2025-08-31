@@ -1,0 +1,53 @@
+# Dockerfile for load testing
+FROM rust:1.75-slim as builder
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy dependency files
+COPY Cargo.toml Cargo.lock ./
+
+# Create dummy main.rs to build dependencies
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+
+# Build dependencies
+RUN cargo build --release && rm -rf src
+
+# Copy source code
+COPY src ./src
+
+# Build load test binaries
+RUN cargo build --release --bin load_test --bin extreme_load_test
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+# Install runtime dependencies and tools
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    htop \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create results directory
+RUN mkdir -p /app/results
+
+# Copy binaries from builder stage
+COPY --from=builder /app/target/release/load_test /usr/local/bin/load_test
+COPY --from=builder /app/target/release/extreme_load_test /usr/local/bin/extreme_load_test
+
+# Copy test scripts
+COPY scripts/ /app/scripts/
+
+# Make scripts executable
+RUN chmod +x /app/scripts/*.sh
+
+WORKDIR /app
+
+# Default command runs the test suite
+CMD ["/app/scripts/run_tests.sh"]
